@@ -3,6 +3,14 @@ import random
 import math
 
 
+CARD_RATES = {
+    "GK": {"yellow": 0.01, "red": 0.001, "injury": 0.01},
+    "DEF": {"yellow": 0.12, "red": 0.02, "injury": 0.04},
+    "MID": {"yellow": 0.09, "red": 0.012, "injury": 0.04},
+    "FWD": {"yellow": 0.05, "red": 0.005, "injury": 0.03}
+}
+
+
 def get_players(team):
     return [item["player"] for item in team.STARTING_XI]
 
@@ -10,20 +18,26 @@ def get_players(team):
 def get_team_ratings(team):
     players = get_players(team)
 
-    gk = [p.ovr for p in players if p.position == "GK"]
-    defense = [p.ovr for p in players if p.position == "DEF"]
-    midfield = [p.ovr for p in players if p.position == "MID"]
-    attack = [p.ovr for p in players if p.position == "FWD"]
-
-    def avg(values):
+    def average(position):
+        values = [p.ovr for p in players if p.position == position]
         return sum(values) / len(values) if values else 0
 
-    return (
-        avg(attack) * 0.50 + avg(midfield) * 0.35
-        + avg(defense) * 0.10 + avg(gk) * 0.05,
-        avg(gk) * 0.35 + avg(defense) * 0.40
-        + avg(midfield) * 0.20 + avg(attack) * 0.05
+    gk = average("GK")
+    defense = average("DEF")
+    midfield = average("MID")
+    attack = average("FWD")
+
+    attacking = (
+        attack * 0.50 + midfield * 0.35
+        + defense * 0.10 + gk * 0.05
     )
+
+    defending = (
+        gk * 0.35 + defense * 0.40
+        + midfield * 0.20 + attack * 0.05
+    )
+
+    return attacking, defending
 
 
 def poisson(expected_goals):
@@ -42,17 +56,15 @@ def choose_scorer(team):
     players = get_players(team)
     weights = []
 
-    for player in players:
-        if player.position == "FWD":
-            weight = 5
-        elif player.position == "MID":
-            weight = 2.5
-        elif player.position == "DEF":
-            weight = 0.8
-        else:
-            weight = 0.05
+    for p in players:
+        multiplier = {
+            "GK": 0.05,
+            "DEF": 0.8,
+            "MID": 2.5,
+            "FWD": 5
+        }.get(p.position, 1)
 
-        weights.append(weight * player.ovr)
+        weights.append(p.ovr * multiplier)
 
     return random.choices(players, weights=weights, k=1)[0]
 
@@ -81,23 +93,91 @@ def generate_goal(team, minute):
     return {
         "minute": minute,
         "type": "goal",
+        "team": team.TEAM_NAME,
         "scorer": scorer.name,
-        "assist": assist.name if assist else None,
-        "team": team.TEAM_NAME
+        "assist": assist.name if assist else None
     }
+
+
+def generate_disciplinary_events(team):
+    events = []
+
+    for player in get_players(team):
+        rates = CARD_RATES.get(
+            player.position,
+            CARD_RATES["MID"]
+        )
+
+        # Doğrudan kırmızı kart
+        if random.random() < rates["red"]:
+            minute = random.randint(1, 90)
+
+            events.append({
+                "minute": minute,
+                "type": "red_card",
+                "team": team.TEAM_NAME,
+                "player": player.name,
+                "reason": "Doğrudan kırmızı kart"
+            })
+
+        else:
+            # İlk sarı kart
+            if random.random() < rates["yellow"]:
+                first_minute = random.randint(1, 85)
+
+                events.append({
+                    "minute": first_minute,
+                    "type": "yellow_card",
+                    "team": team.TEAM_NAME,
+                    "player": player.name
+                })
+
+                # İkinci sarı kart ihtimali
+                if random.random() < 0.08:
+                    second_minute = random.randint(
+                        first_minute + 1, 90
+                    )
+
+                    events.append({
+                        "minute": second_minute,
+                        "type": "second_yellow",
+                        "team": team.TEAM_NAME,
+                        "player": player.name
+                    })
+
+                    events.append({
+                        "minute": second_minute,
+                        "type": "red_card",
+                        "team": team.TEAM_NAME,
+                        "player": player.name,
+                        "reason": "İkinci sarı kart"
+                    })
+
+        # Sakatlık
+        if random.random() < rates["injury"]:
+            events.append({
+                "minute": random.randint(1, 90),
+                "type": "injury",
+                "team": team.TEAM_NAME,
+                "player": player.name
+            })
+
+    return events
 
 
 def simulate_match(home, away):
     home_attack, home_defense = get_team_ratings(home)
     away_attack, away_defense = get_team_ratings(away)
 
-    home_xg = max(0.15, min(4.0,
-        1.35 + (home_attack - away_defense) / 30 + 0.20
-    ))
+    home_xg = max(
+        0.15,
+        min(4.0, 1.35 + (home_attack - away_defense) / 30 + 0.20)
+    )
 
-    away_xg = max(0.15, min(4.0,
-        1.15 + (away_attack - home_defense) / 30
-    ))
+    away_xg = max(
+        0.15,
+        min(4.0, 1.15 + (away_attack - home_defense) / 30)
+    )
 
     home_goals = poisson(home_xg)
     away_goals = poisson(away_xg)
@@ -109,6 +189,9 @@ def simulate_match(home, away):
 
     for _ in range(away_goals):
         events.append(generate_goal(away, random.randint(1, 90)))
+
+    events.extend(generate_disciplinary_events(home))
+    events.extend(generate_disciplinary_events(away))
 
     events.sort(key=lambda event: event["minute"])
 
