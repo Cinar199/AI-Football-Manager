@@ -1,7 +1,4 @@
-
-from fastapi import FastAPI
-from teams import ssc_vincia, reale_vincia
-from engine.simulation import simulate_match
+from fastapi import FastAPI, HTTPException
 
 app = FastAPI(
     title="AI Football Manager",
@@ -53,3 +50,30 @@ def get_reale_vincia():
 def test_match():
     return simulate_match(ssc_vincia, reale_vincia)
     
+TEAMS = {
+    "ssc_vincia": ssc_vincia,
+    "reale_vincia": reale_vincia
+}
+
+
+@app.get("/match")
+def play_match(
+    home: str = "ssc_vincia",
+    away: str = "reale_vincia"
+):
+    if home not in TEAMS or away not in TEAMS:
+        raise HTTPException(
+            status_code=404,
+            detail="Takım bulunamadı."
+        )
+
+    if home == away:
+        raise HTTPException(
+            status_code=400,
+            detail="Bir takım kendisiyle oynayamaz."
+        )
+
+    return simulate_match(
+        TEAMS[home],
+        TEAMS[away]
+    )
