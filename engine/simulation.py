@@ -1,4 +1,3 @@
-
 import random
 import math
 
@@ -108,7 +107,6 @@ def generate_disciplinary_events(team):
             CARD_RATES["MID"]
         )
 
-        # Doğrudan kırmızı kart
         if random.random() < rates["red"]:
             minute = random.randint(1, 90)
 
@@ -121,7 +119,6 @@ def generate_disciplinary_events(team):
             })
 
         else:
-            # İlk sarı kart
             if random.random() < rates["yellow"]:
                 first_minute = random.randint(1, 85)
 
@@ -132,7 +129,6 @@ def generate_disciplinary_events(team):
                     "player": player.name
                 })
 
-                # İkinci sarı kart ihtimali
                 if random.random() < 0.08:
                     second_minute = random.randint(
                         first_minute + 1, 90
@@ -153,7 +149,6 @@ def generate_disciplinary_events(team):
                         "reason": "İkinci sarı kart"
                     })
 
-        # Sakatlık
         if random.random() < rates["injury"]:
             events.append({
                 "minute": random.randint(1, 90),
@@ -165,33 +160,65 @@ def generate_disciplinary_events(team):
     return events
 
 
+def red_card_impact(events, team_name):
+    red_cards = [
+        event for event in events
+        if event["type"] == "red_card"
+        and event["team"] == team_name
+    ]
+
+    impact = 0
+
+    for card in red_cards:
+        remaining_time = (90 - card["minute"]) / 90
+        impact += remaining_time
+
+    return impact
+
+
 def simulate_match(home, away):
+    events = []
+
+    events.extend(generate_disciplinary_events(home))
+    events.extend(generate_disciplinary_events(away))
+
     home_attack, home_defense = get_team_ratings(home)
     away_attack, away_defense = get_team_ratings(away)
 
-    home_xg = max(
-        0.15,
-        min(4.0, 1.35 + (home_attack - away_defense) / 30 + 0.20)
+    home_red_impact = red_card_impact(events, home.TEAM_NAME)
+    away_red_impact = red_card_impact(events, away.TEAM_NAME)
+
+    home_xg = (
+        1.35 + (home_attack - away_defense) / 30 + 0.20
     )
 
-    away_xg = max(
-        0.15,
-        min(4.0, 1.15 + (away_attack - home_defense) / 30)
+    away_xg = (
+        1.15 + (away_attack - home_defense) / 30
     )
+
+    # Kırmızı kart etkisi
+    home_xg *= max(0.35, 1 - home_red_impact * 0.30)
+    away_xg *= max(0.35, 1 - away_red_impact * 0.30)
+
+    # Rakibin gol beklentisinin artması
+    home_xg += away_red_impact * 0.35
+    away_xg += home_red_impact * 0.35
+
+    home_xg = max(0.15, min(4.0, home_xg))
+    away_xg = max(0.15, min(4.0, away_xg))
 
     home_goals = poisson(home_xg)
     away_goals = poisson(away_xg)
 
-    events = []
-
     for _ in range(home_goals):
-        events.append(generate_goal(home, random.randint(1, 90)))
+        events.append(
+            generate_goal(home, random.randint(1, 90))
+        )
 
     for _ in range(away_goals):
-        events.append(generate_goal(away, random.randint(1, 90)))
-
-    events.extend(generate_disciplinary_events(home))
-    events.extend(generate_disciplinary_events(away))
+        events.append(
+            generate_goal(away, random.randint(1, 90))
+        )
 
     events.sort(key=lambda event: event["minute"])
 
@@ -203,4 +230,3 @@ def simulate_match(home, away):
         "away_xg": round(away_xg, 2),
         "events": events
     }
-    
