@@ -104,3 +104,38 @@ def play_custom_match(data: MatchRequest):
         away_instruction=data.away_instruction
     )
     
+
+def format_events(events):
+    lines = []
+
+    for event in events:
+        minute = event["minute"]
+        team = event["team"]
+        player = event.get("player") or event.get("scorer", "Bilinmiyor")
+
+        if event["type"] == "goal":
+            assist = event.get("assist")
+            line = f"⚽ {minute}' {player}"
+
+            if assist:
+                line += f" (Asist: {assist})"
+
+        elif event["type"] == "yellow_card":
+            line = f"🟨 {minute}' {player} - Sarı kart"
+
+        elif event["type"] == "red_card":
+            line = f"🟥 {minute}' {player} - Kırmızı kart"
+
+        elif event["type"] == "second_yellow":
+            line = f"🟨 {minute}' {player} - İkinci sarı kart"
+
+        elif event["type"] == "injury":
+            line = f"🚑 {minute}' {player} - Sakatlık"
+
+        else:
+            continue
+
+        lines.append(f"**{line}** — {team}")
+
+    return "\n".join(lines) if lines else "Maçta kayda değer olay yaşanmadı."
+    
