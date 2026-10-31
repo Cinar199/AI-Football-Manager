@@ -1,48 +1,75 @@
+
 import random
+import math
 
 
-def team_strength(team):
+def get_team_ratings(team):
     players = [item["player"] for item in team.STARTING_XI]
 
-    attack = sum(
-        (p.sho + p.pac + p.dri) / 3
-        for p in players
-        if p.position == "FWD" or p.position == "MID"
+    def average(position):
+        selected = [p.ovr for p in players if p.position == position]
+        return sum(selected) / len(selected) if selected else 0
+
+    gk = average("GK")
+    defense = average("DEF")
+    midfield = average("MID")
+    attack = average("FWD")
+
+    attacking_power = (
+        attack * 0.50 +
+        midfield * 0.35 +
+        defense * 0.10 +
+        gk * 0.05
     )
 
-    defense = sum(
-        (p.defending + p.phy + p.pac) / 3
-        for p in players
-        if p.position == "DEF"
+    defensive_power = (
+        gk * 0.35 +
+        defense * 0.40 +
+        midfield * 0.20 +
+        attack * 0.05
     )
 
-    return attack / 6, defense / 4
+    return attacking_power, defensive_power
+
+
+def poisson(expected_goals):
+    limit = math.exp(-expected_goals)
+    probability = 1
+    goals = 0
+
+    while probability > limit:
+        goals += 1
+        probability *= random.random()
+
+    return goals - 1
 
 
 def simulate_match(home, away):
-    home_attack, home_defense = team_strength(home)
-    away_attack, away_defense = team_strength(away)
+    home_attack, home_defense = get_team_ratings(home)
+    away_attack, away_defense = get_team_ratings(away)
 
-    home_chance = max(0.15, min(0.75,
-        0.35 + (home_attack - away_defense) / 500
-    ))
+    home_xg = 1.35 + (home_attack - away_defense) / 30 + 0.20
+    away_xg = 1.15 + (away_attack - home_defense) / 30
 
-    away_chance = max(0.15, min(0.75,
-        0.30 + (away_attack - home_defense) / 500
-    ))
+    home_xg = max(0.15, min(4.0, home_xg))
+    away_xg = max(0.15, min(4.0, away_xg))
 
-    home_goals = sum(
-        1 for _ in range(12)
-        if random.random() < home_chance
-    )
+    home_goals = poisson(home_xg)
+    away_goals = poisson(away_xg)
 
-    away_goals = sum(
-        1 for _ in range(12)
-        if random.random() < away_chance
-    )
+    if home_goals > away_goals:
+        result = "Ev sahibi kazandı"
+    elif away_goals > home_goals:
+        result = "Deplasman kazandı"
+    else:
+        result = "Berabere"
 
     return {
         "home": home.TEAM_NAME,
         "away": away.TEAM_NAME,
-        "score": f"{home_goals}-{away_goals}"
+        "score": f"{home_goals}-{away_goals}",
+        "home_xg": round(home_xg, 2),
+        "away_xg": round(away_xg, 2),
+        "result": result
     }
+    
