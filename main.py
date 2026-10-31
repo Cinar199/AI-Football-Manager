@@ -1,9 +1,18 @@
+
 from fastapi import FastAPI, HTTPException
+
+from teams import ssc_vincia, reale_vincia
+from engine.simulation import simulate_match
 
 app = FastAPI(
     title="AI Football Manager",
     version="1.0.0"
 )
+
+TEAMS = {
+    "ssc_vincia": ssc_vincia,
+    "reale_vincia": reale_vincia
+}
 
 
 @app.get("/")
@@ -22,38 +31,24 @@ def health():
     }
 
 
-@app.get("/team/ssc_vincia")
-def get_ssc_vincia():
+@app.get("/team/{team_id}")
+def get_team(team_id: str):
+    if team_id not in TEAMS:
+        raise HTTPException(404, "Takım bulunamadı.")
+
+    team = TEAMS[team_id]
+
     return {
-        "name": ssc_vincia.TEAM_NAME,
-        "formation": ssc_vincia.FORMATION,
+        "name": team.TEAM_NAME,
+        "formation": team.FORMATION,
         "players": [
-            {"role": item["role"], **item["player"].info()}
-            for item in ssc_vincia.STARTING_XI
+            {
+                "role": item["role"],
+                **item["player"].info()
+            }
+            for item in team.STARTING_XI
         ]
     }
-
-
-@app.get("/team/reale_vincia")
-def get_reale_vincia():
-    return {
-        "name": reale_vincia.TEAM_NAME,
-        "formation": reale_vincia.FORMATION,
-        "players": [
-            {"role": item["role"], **item["player"].info()}
-            for item in reale_vincia.STARTING_XI
-        ]
-    }
-
-
-@app.get("/match/test")
-def test_match():
-    return simulate_match(ssc_vincia, reale_vincia)
-    
-TEAMS = {
-    "ssc_vincia": ssc_vincia,
-    "reale_vincia": reale_vincia
-}
 
 
 @app.get("/match")
@@ -62,18 +57,9 @@ def play_match(
     away: str = "reale_vincia"
 ):
     if home not in TEAMS or away not in TEAMS:
-        raise HTTPException(
-            status_code=404,
-            detail="Takım bulunamadı."
-        )
+        raise HTTPException(404, "Takım bulunamadı.")
 
     if home == away:
-        raise HTTPException(
-            status_code=400,
-            detail="Bir takım kendisiyle oynayamaz."
-        )
+        raise HTTPException(400, "Takım kendisiyle oynayamaz.")
 
-    return simulate_match(
-        TEAMS[home],
-        TEAMS[away]
-    )
+    return simulate_match(TEAMS[home], TEAMS[away])
