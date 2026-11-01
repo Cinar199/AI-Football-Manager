@@ -2,17 +2,28 @@
 import random
 import math
 
+
 CARD_RATES = {
-    "GK": {"yellow": 0.01, "red": 0.001, "injury": 0.01},
-    "DEF": {"yellow": 0.12, "red": 0.02, "injury": 0.04},
-    "MID": {"yellow": 0.09, "red": 0.012, "injury": 0.04},
-    "FWD": {"yellow": 0.05, "red": 0.005, "injury": 0.03}
+    "GK": {"yellow": 0.01, "red": 0.00005, "injury": 0.0005},
+    "DEF": {"yellow": 0.12, "red": 0.001, "injury": 0.002},
+    "MID": {"yellow": 0.09, "red": 0.0006, "injury": 0.002},
+    "FWD": {"yellow": 0.05, "red": 0.00025, "injury": 0.0015}
 }
 
+
 TACTICS = {
-    "defansif": {"attack": 0.82, "concede": 0.78},
-    "dengeli": {"attack": 1.00, "concede": 1.00},
-    "ofansif": {"attack": 1.20, "concede": 1.22}
+    "defansif": {
+        "attack": 0.82,
+        "concede": 0.78
+    },
+    "dengeli": {
+        "attack": 1.00,
+        "concede": 1.00
+    },
+    "ofansif": {
+        "attack": 1.20,
+        "concede": 1.22
+    }
 }
 
 
@@ -32,8 +43,15 @@ def get_team_ratings(team):
     midfield = average("MID")
     attack = average("FWD")
 
-    attacking = attack * 0.50 + midfield * 0.35 + defense * 0.10 + gk * 0.05
-    defending = gk * 0.35 + defense * 0.40 + midfield * 0.20 + attack * 0.05
+    attacking = (
+        attack * 0.50 + midfield * 0.35
+        + defense * 0.10 + gk * 0.05
+    )
+
+    defending = (
+        gk * 0.35 + defense * 0.40
+        + midfield * 0.20 + attack * 0.05
+    )
 
     return attacking, defending
 
@@ -79,15 +97,15 @@ def choose_scorer(team):
     players = get_players(team)
     weights = []
 
-    for p in players:
+    for player in players:
         multiplier = {
             "GK": 0.05,
             "DEF": 0.8,
             "MID": 2.5,
             "FWD": 5
-        }.get(p.position, 1)
+        }.get(player.position, 1)
 
-        weights.append(p.ovr * multiplier)
+        weights.append(player.ovr * multiplier)
 
     return random.choices(players, weights=weights, k=1)[0]
 
@@ -126,7 +144,10 @@ def generate_disciplinary_events(team):
     events = []
 
     for player in get_players(team):
-        rates = CARD_RATES.get(player.position, CARD_RATES["MID"])
+        rates = CARD_RATES.get(
+            player.position,
+            CARD_RATES["MID"]
+        )
 
         if random.random() < rates["red"]:
             events.append({
@@ -136,6 +157,7 @@ def generate_disciplinary_events(team):
                 "player": player.name,
                 "reason": "Doğrudan kırmızı kart"
             })
+
         else:
             if random.random() < rates["yellow"]:
                 first_minute = random.randint(1, 85)
@@ -148,7 +170,9 @@ def generate_disciplinary_events(team):
                 })
 
                 if random.random() < 0.08:
-                    second_minute = random.randint(first_minute + 1, 90)
+                    second_minute = random.randint(
+                        first_minute + 1, 90
+                    )
 
                     events.append({
                         "minute": second_minute,
@@ -180,7 +204,10 @@ def red_card_impact(events, team_name):
     impact = 0
 
     for event in events:
-        if event["type"] == "red_card" and event["team"] == team_name:
+        if (
+            event["type"] == "red_card"
+            and event["team"] == team_name
+        ):
             impact += (90 - event["minute"]) / 90
 
     return impact
@@ -204,6 +231,7 @@ def simulate_match(
         away_tactic = "dengeli"
 
     events = []
+
     events.extend(generate_disciplinary_events(home))
     events.extend(generate_disciplinary_events(away))
 
@@ -262,5 +290,5 @@ def simulate_match(
         "home_xg": round(home_xg, 2),
         "away_xg": round(away_xg, 2),
         "events": events
-    }
+                    }
     
