@@ -1,4 +1,3 @@
-
 import random
 import math
 
@@ -12,18 +11,9 @@ CARD_RATES = {
 
 
 TACTICS = {
-    "defansif": {
-        "attack": 0.82,
-        "concede": 0.78
-    },
-    "dengeli": {
-        "attack": 1.00,
-        "concede": 1.00
-    },
-    "ofansif": {
-        "attack": 1.20,
-        "concede": 1.22
-    }
+    "defansif": {"attack": 0.82, "concede": 0.78},
+    "dengeli": {"attack": 1.00, "concede": 1.00},
+    "ofansif": {"attack": 1.20, "concede": 1.22}
 }
 
 
@@ -219,7 +209,11 @@ def simulate_match(
     home_tactic="dengeli",
     away_tactic="dengeli",
     home_instruction="",
-    away_instruction=""
+    away_instruction="",
+    home_form_bonus=0,
+    away_form_bonus=0,
+    home_title_bonus=0,
+    away_title_bonus=0
 ):
     home_tactic = home_tactic.lower()
     away_tactic = away_tactic.lower()
@@ -256,6 +250,18 @@ def simulate_match(
     home_xg *= 1 + away_concede
     away_xg *= 1 + home_concede
 
+    # Form ve şampiyonluk bonusları.
+    # Her 1 yüzde puanı, gol beklentisi farkına 0.025 katkı yapar.
+    home_strength = home_form_bonus + home_title_bonus
+    away_strength = away_form_bonus + away_title_bonus
+
+    strength_difference = (
+        home_strength - away_strength
+    ) * 0.025
+
+    home_xg += strength_difference
+    away_xg -= strength_difference
+
     home_red = red_card_impact(events, home.TEAM_NAME)
     away_red = red_card_impact(events, away.TEAM_NAME)
 
@@ -289,6 +295,9 @@ def simulate_match(
         "away_instruction": away_instruction,
         "home_xg": round(home_xg, 2),
         "away_xg": round(away_xg, 2),
+        "home_form_bonus": home_form_bonus,
+        "away_form_bonus": away_form_bonus,
+        "home_title_bonus": home_title_bonus,
+        "away_title_bonus": away_title_bonus,
         "events": events
-                    }
-    
+}
