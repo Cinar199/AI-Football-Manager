@@ -2,19 +2,31 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from teams import ssc_vincia, reale_vincia, ermis_sc, ss_carthage
+from teams import (
+    ssc_vincia,
+    reale_vincia,
+    ermis_sc,
+    ss_carthage,
+    juventus,
+    as_roma,
+    fk_zeyzella
+)
+
 from engine.simulation import simulate_match
 
 app = FastAPI(
     title="AI Football Manager",
-    version="1.3.0"
+    version="1.4.0"
 )
 
 TEAMS = {
     "ssc_vincia": ssc_vincia,
     "reale_vincia": reale_vincia,
     "ermis_sc": ermis_sc,
-    "ss_carthage": ss_carthage
+    "ss_carthage": ss_carthage,
+    "juventus": juventus,
+    "as_roma": as_roma,
+    "fk_zeyzella": fk_zeyzella
 }
 
 
@@ -136,3 +148,4 @@ def play_custom_match(data: MatchRequest):
     )
 
     return prepare_match_result(result)
+    
