@@ -2,18 +2,19 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from teams import ssc_vincia, reale_vincia, ermis_sc
+from teams import ssc_vincia, reale_vincia, ermis_sc, ss_carthage
 from engine.simulation import simulate_match
 
 app = FastAPI(
     title="AI Football Manager",
-    version="1.2.0"
+    version="1.3.0"
 )
 
 TEAMS = {
     "ssc_vincia": ssc_vincia,
     "reale_vincia": reale_vincia,
-    "ermis_sc": ermis_sc
+    "ermis_sc": ermis_sc,
+    "ss_carthage": ss_carthage
 }
 
 
@@ -77,6 +78,20 @@ def health():
     return {"online": True, "project": "AI Football Manager"}
 
 
+@app.get("/teams")
+def get_teams():
+    return {
+        "teams": [
+            {
+                "id": team_id,
+                "name": team.TEAM_NAME,
+                "formation": team.FORMATION
+            }
+            for team_id, team in TEAMS.items()
+        ]
+    }
+
+
 @app.get("/team/{team_id}")
 def get_team(team_id: str):
     if team_id not in TEAMS:
@@ -107,6 +122,7 @@ def play_custom_match(data: MatchRequest):
 
     if data.home_tactic.lower() not in ["defansif", "dengeli", "ofansif"]:
         raise HTTPException(400, "Geçersiz ev sahibi taktiği.")
+
     if data.away_tactic.lower() not in ["defansif", "dengeli", "ofansif"]:
         raise HTTPException(400, "Geçersiz deplasman taktiği.")
 
@@ -118,5 +134,5 @@ def play_custom_match(data: MatchRequest):
         home_instruction=data.home_instruction,
         away_instruction=data.away_instruction
     )
+
     return prepare_match_result(result)
-    
