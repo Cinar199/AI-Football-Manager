@@ -427,4 +427,4 @@ def simulate_match(
         "home_xg": round(home_xg, 2),
         "away_xg": round(away_xg, 2),
         "events": events
-}
+    }
