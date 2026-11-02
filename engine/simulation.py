@@ -1,3 +1,4 @@
+
 import random
 import math
 
@@ -11,18 +12,9 @@ CARD_RATES = {
 
 
 TACTICS = {
-    "defansif": {
-        "attack": 0.82,
-        "concede": 0.78
-    },
-    "dengeli": {
-        "attack": 1.00,
-        "concede": 1.00
-    },
-    "ofansif": {
-        "attack": 1.20,
-        "concede": 1.22
-    }
+    "defansif": {"attack": 0.82, "concede": 0.78},
+    "dengeli": {"attack": 1.00, "concede": 1.00},
+    "ofansif": {"attack": 1.20, "concede": 1.22}
 }
 
 
@@ -149,10 +141,13 @@ def generate_goal(team, minute, active_players=None):
     }
 
 
-def generate_disciplinary_events(team):
+def generate_disciplinary_events(team, substitution_events=None):
     events = []
+    substitution_events = substitution_events or []
 
-    for player in get_players(team):
+    players = get_players(team)
+
+    for player in players:
         rates = CARD_RATES.get(
             player.position,
             CARD_RATES["MID"]
@@ -178,10 +173,8 @@ def generate_disciplinary_events(team):
                     "player": player.name
                 })
 
-                if random.random() < 0.08:
-                    second_minute = random.randint(
-                        first_minute + 1, 90
-                    )
+                if random.random() < 0.08 and first_minute < 90:
+                    second_minute = random.randint(first_minute + 1, 90)
 
                     events.append({
                         "minute": second_minute,
@@ -215,43 +208,34 @@ def generate_substitution_events(team, existing_events):
     if not substitutes:
         return []
 
-    # Takım başına en fazla 5 değişiklik.
-    max_substitutions = min(5, len(substitutes))
-
-    if max_substitutions == 1:
-        substitution_count = 1
-    else:
-        substitution_count = random.randint(
-            2,
-            max_substitutions
-        )
-
     selected = random.sample(
         substitutes,
-        substitution_count
+        random.randint(1, min(5, len(substitutes)))
     )
 
     minutes = sorted(
-        random.sample(range(55, 90), substitution_count)
+        random.sample(range(55, 90), len(selected))
     )
 
     events = []
 
-    dismissed_players = {
-        event["player"]
-        for event in existing_events
-        if (
-            event["team"] == team.TEAM_NAME
-            and event["type"] == "red_card"
-        )
-    }
+    red_cards = [
+        event for event in existing_events
+        if event["team"] == team.TEAM_NAME
+        and event["type"] == "red_card"
+    ]
 
     for substitute, minute in zip(selected, minutes):
         outgoing = substitute["replaces"]
         incoming = substitute["player"]
 
-        # Kırmızı kart gören oyuncu değiştirilemez.
-        if outgoing in dismissed_players:
+        dismissed_before = any(
+            event["player"] == outgoing
+            and event["minute"] <= minute
+            for event in red_cards
+        )
+
+        if dismissed_before:
             continue
 
         events.append({
@@ -271,20 +255,15 @@ def get_active_players(team, minute, substitution_events):
     team_substitutions = sorted(
         [
             event for event in substitution_events
-            if (
-                event["team"] == team.TEAM_NAME
-                and event["minute"] <= minute
-            )
+            if event["team"] == team.TEAM_NAME
+            and event["minute"] <= minute
         ],
         key=lambda event: event["minute"]
     )
 
     for event in team_substitutions:
         outgoing = next(
-            (
-                p for p in active_players
-                if p.name == event["player"]
-            ),
+            (p for p in active_players if p.name == event["player"]),
             None
         )
 
@@ -307,10 +286,7 @@ def red_card_impact(events, team_name):
     impact = 0
 
     for event in events:
-        if (
-            event["type"] == "red_card"
-            and event["team"] == team_name
-        ):
+        if event["type"] == "red_card" and event["team"] == team_name:
             impact += (90 - event["minute"]) / 90
 
     return impact
@@ -322,7 +298,9 @@ def simulate_match(
     home_tactic="dengeli",
     away_tactic="dengeli",
     home_instruction="",
-    away_instruction=""
+    away_instruction="",
+    home_title_bonus=0.0,
+    away_title_bonus=0.0
 ):
     home_tactic = home_tactic.lower()
     away_tactic = away_tactic.lower()
@@ -335,10 +313,11 @@ def simulate_match(
 
     events = []
 
+    # Önce kart ve sakatlık olayları oluşturulur.
     events.extend(generate_disciplinary_events(home))
     events.extend(generate_disciplinary_events(away))
 
-    # Oyuncu değişiklikleri
+    # Oyuncu değişiklikleri oluşturulur.
     substitutions = []
 
     substitutions.extend(
@@ -351,9 +330,15 @@ def simulate_match(
 
     events.extend(substitutions)
 
+    # Takım güçleri.
     home_attack, home_defense = get_team_ratings(home)
     away_attack, away_defense = get_team_ratings(away)
 
+    # Şampiyonluk bonusu.
+    home_attack += home_title_bonus
+    away_attack += away_title_bonus
+
+    # Talimat bonusları.
     home_bonus, home_concede = analyze_instruction(home_instruction)
     away_bonus, away_concede = analyze_instruction(away_instruction)
 
@@ -372,6 +357,7 @@ def simulate_match(
     home_xg *= 1 + away_concede
     away_xg *= 1 + home_concede
 
+    # Kırmızı kart etkisi.
     home_red = red_card_impact(events, home.TEAM_NAME)
     away_red = red_card_impact(events, away.TEAM_NAME)
 
@@ -387,34 +373,68 @@ def simulate_match(
     home_goals = poisson(home_xg)
     away_goals = poisson(away_xg)
 
-    # Goller, o dakikada sahada olan oyuncular arasından seçilir.
+    # Goller, o dakikada sahada olan oyunculardan seçilir.
     for _ in range(home_goals):
         minute = random.randint(1, 90)
+
         active_players = get_active_players(
             home,
             minute,
             substitutions
         )
 
-        goal = generate_goal(home, minute, active_players)
+        goal = generate_goal(
+            home,
+            minute,
+            active_players
+        )
 
         if goal:
             events.append(goal)
 
     for _ in range(away_goals):
         minute = random.randint(1, 90)
+
         active_players = get_active_players(
             away,
             minute,
             substitutions
         )
 
-        goal = generate_goal(away, minute, active_players)
+        goal = generate_goal(
+            away,
+            minute,
+            active_players
+        )
 
         if goal:
             events.append(goal)
 
-    events.sort(key=lambda event: event["minute"])
+    # Kart ve sakatlık olaylarını değişikliklerden sonra kontrol et.
+    # Oyundan çıkmış oyuncuların sonraki dakikalarda olay almasını engeller.
+    filtered_events = []
+
+    for event in events:
+        if event["type"] == "substitution":
+            filtered_events.append(event)
+            continue
+
+        if event["type"] in ("goal", "yellow_card", "red_card", "second_yellow", "injury"):
+            team = home if event["team"] == home.TEAM_NAME else away
+
+            if event["type"] != "goal":
+                active = get_active_players(
+                    team,
+                    event["minute"],
+                    substitutions
+                )
+
+                if not any(p.name == event["player"] for p in active):
+                    continue
+
+        filtered_events.append(event)
+
+    filtered_events.sort(key=lambda event: event["minute"])
 
     return {
         "home": home.TEAM_NAME,
@@ -426,5 +446,6 @@ def simulate_match(
         "away_instruction": away_instruction,
         "home_xg": round(home_xg, 2),
         "away_xg": round(away_xg, 2),
-        "events": events
-    }
+        "events": filtered_events
+}
+    
