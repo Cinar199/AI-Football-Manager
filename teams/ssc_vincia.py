@@ -8,7 +8,7 @@ FORMATION = "4-4-2"
 STARTING_XI = [
     {"role": "KL", "player": Player("Alex Meret", "GK", 81)},
     {"role": "SLB", "player": Player("Mathias Olivera", "DEF", 77)},
-    {"role": "STP", "player": Player("Lautaro Rivero", "DEF", 76)},
+    {"role": "STP", "player": Player("Benoît Badiashile", "DEF", 77)},
     {"role": "STP", "player": Player("Sam Beukama", "DEF", 78)},
     {"role": "SĞB", "player": Player("Kyriani Sabbe", "DEF", 75)},
     {"role": "SLA", "player": Player("Noa Lang", "MID", 79)},
