@@ -13,7 +13,7 @@ STARTING_XI = [
     {"role": "STP", "player": Player("Martin Vitik", "DEF", 74)},
     {"role": "STP", "player": Player("Arseniy Batagov", "DEF", 75)},
     {"role": "STP", "player": Player("Diego Carlos", "DEF", 78)},
-    {"role": "SĞB", "player": Player("Abdurrahman Üresin", "DEF", 65)},
+    {"role": "SĞB", "player": Player("Abdoulaye Ndiaye", "DEF", 69)},
 
     {"role": "DOS", "player": Player("Mandela Keita", "MID", 73)},
     {"role": "OS", "player": Player("Bitello", "MID", 78)},
