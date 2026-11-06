@@ -1,4 +1,3 @@
-
 from player import Player
 
 TEAM_NAME = "Juventus"
@@ -12,11 +11,11 @@ STARTING_XI = [
     {"role": "STP", "player": Player("Bremer", "DEF", 85)},
     {"role": "SĞB", "player": Player("Zeki Çelik", "DEF", 78)},
     {"role": "DOS", "player": Player("Pablo Barrios", "MID", 82)},
-    {"role": "DOS", "player": Player("Khéphren Thuram", "MID", 81)},
+    {"role": "DOS", "player": Player("Angelo Stiller", "MID", 84)},
     {"role": "SLK", "player": Player("Kenan Yıldız", "FWD", 79)},
     {"role": "OOS", "player": Player("Gilberto Mora", "MID", 73)},
     {"role": "SĞK", "player": Player("Francisco Conceição", "FWD", 79)},
-    {"role": "SNT", "player": Player("Nick Woltemade", "FWD", 78)}
+    {"role": "SNT", "player": Player("Junior Kroupi", "FWD", 77)}
 ]
 
 
@@ -25,4 +24,3 @@ def show_team():
     for item in STARTING_XI:
         player = item["player"]
         print(f'{item["role"]}: {player.name} | OVR: {player.ovr}')
-      
